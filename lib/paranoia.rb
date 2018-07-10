@@ -175,7 +175,7 @@ module Paranoia
 
   def paranoia_destroy_attributes
     {
-      paranoia_column => current_time_from_proper_timezone
+      paranoia_column => paranoia_deleted_value
     }.merge(timestamp_attributes_with_current_time)
   end
 
@@ -239,9 +239,11 @@ ActiveSupport.on_load(:active_record) do
 
       include Paranoia
       class_attribute :paranoia_column, :paranoia_sentinel_value
+      class_attribute :paranoia_deleted_value, instance_accessor: false, instance_predicate: false
 
       self.paranoia_column = (options[:column] || :deleted_at).to_s
       self.paranoia_sentinel_value = options.fetch(:sentinel_value) { Paranoia.default_sentinel_value }
+      self.paranoia_deleted_value = options[:deleted_value]
       def self.paranoia_scope
         where(paranoia_column => paranoia_sentinel_value)
       end
@@ -282,6 +284,14 @@ ActiveSupport.on_load(:active_record) do
     def paranoia_sentinel_value
       self.class.paranoia_sentinel_value
     end
+
+    def paranoia_deleted_value
+      if self.class.paranoia_deleted_value.nil?
+        current_time_from_proper_timezone
+      else
+        self.class.paranoia_deleted_value
+      end
+    end
   end
 end
 
@@ -305,7 +315,7 @@ module ActiveRecord
     class UniquenessValidator < ActiveModel::EachValidator
       prepend UniquenessParanoiaValidator
     end
-    
+
     class AssociationNotSoftDestroyedValidator < ActiveModel::EachValidator
       def validate_each(record, attribute, value)
         # if association is soft destroyed, add an error

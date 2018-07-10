@@ -1,4 +1,12 @@
-**Notice:** 
+**This is a fork**
+
+This is a fork of [Paranoia](https://github.com/rubysherpas/paranoia/pull/230/files) to implement boolean flags.
+
+```
+acts_as_paranoia column: "deleted", sentinel_value: false, deleted_value: true
+```
+
+**Notice:**
 
 `paranoia` has some surprising behaviour (like overriding ActiveRecord's `delete` and `destroy`) and is not recommended for new projects. See [`discard`'s README](https://github.com/jhawthorn/discard#why-not-paranoia-or-acts_as_paranoid) for more details.
 

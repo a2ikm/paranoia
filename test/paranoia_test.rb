@@ -46,8 +46,9 @@ def setup!
     'active_column_models' => 'deleted_at DATETIME, active BOOLEAN',
     'active_column_model_with_uniqueness_validations' => 'name VARCHAR(32), deleted_at DATETIME, active BOOLEAN',
     'paranoid_model_with_belongs_to_active_column_model_with_has_many_relationships' => 'name VARCHAR(32), deleted_at DATETIME, active BOOLEAN, active_column_model_with_has_many_relationship_id INTEGER',
-    'active_column_model_with_has_many_relationships' => 'name VARCHAR(32), deleted_at DATETIME, active BOOLEAN', 
-    'without_default_scope_models' => 'deleted_at DATETIME'
+    'active_column_model_with_has_many_relationships' => 'name VARCHAR(32), deleted_at DATETIME, active BOOLEAN',
+    'without_default_scope_models' => 'deleted_at DATETIME',
+    'boolean_models' => 'deleted BOOLEAN'
   }.each do |table_name, columns_as_sql_string|
     ActiveRecord::Base.connection.execute "CREATE TABLE #{table_name} (id INTEGER NOT NULL PRIMARY KEY, #{columns_as_sql_string})"
   end
@@ -189,11 +190,11 @@ class ParanoiaTest < test_framework
     p2 = ParanoidModel.create(:parent_model => parent2)
     p1.destroy
     p2.destroy
-    
+
     assert_equal 0, parent1.paranoid_models.count
     assert_equal 1, parent1.paranoid_models.only_deleted.count
 
-    assert_equal 2, ParanoidModel.only_deleted.joins(:parent_model).count    
+    assert_equal 2, ParanoidModel.only_deleted.joins(:parent_model).count
     assert_equal 1, parent1.paranoid_models.deleted.count
     assert_equal 0, parent1.paranoid_models.without_deleted.count
     p3 = ParanoidModel.create(:parent_model => parent1)
@@ -206,7 +207,7 @@ class ParanoiaTest < test_framework
     c1 = ActiveColumnModelWithHasManyRelationship.create(name: 'Jacky')
     c2 = ActiveColumnModelWithHasManyRelationship.create(name: 'Thomas')
     p1 = ParanoidModelWithBelongsToActiveColumnModelWithHasManyRelationship.create(name: 'Hello', active_column_model_with_has_many_relationship: c1)
-    
+
     c1.destroy
     assert_equal 1, ActiveColumnModelWithHasManyRelationship.count
     assert_equal 1, ActiveColumnModelWithHasManyRelationship.only_deleted.count
@@ -1055,6 +1056,26 @@ class ParanoiaTest < test_framework
     end
   end
 
+  def test_destroy_behavior_for_boolean_models
+    model = BooleanModel.new
+    assert_equal 0, model.class.count
+    model.save!
+    assert_equal false, model.paranoia_destroyed?
+    assert_equal 1, model.class.count
+    model.destroy
+
+    assert_equal true, model.deleted
+    assert_equal true, model.paranoia_destroyed?
+
+    assert_equal 0, model.class.count
+    assert_equal 1, model.class.unscoped.count
+
+    model.restore
+    assert_equal false, model.deleted
+    assert_equal false, model.paranoia_destroyed?
+    assert_equal 1, model.class.count
+  end
+
   private
   def get_featureful_model
     FeaturefulModel.new(:name => "not empty")
@@ -1331,6 +1352,10 @@ end
 class NotParanoidModelWithBelongsAndAssocationNotSoftDestroyedValidator < NotParanoidModelWithBelong
     belongs_to :parent_model
     validates :parent_model, association_not_soft_destroyed: true
+end
+
+class BooleanModel < ActiveRecord::Base
+  acts_as_paranoid :column => :deleted, :sentinel_value => false, :deleted_value => true
 end
 
 class FlaggedModel < PlainModel
